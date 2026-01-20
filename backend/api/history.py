@@ -21,7 +21,7 @@ def init_db():
         db_client = None
 
 
-@router.get("/history")
+@router.get("")
 async def get_history(
     domain: Optional[str] = Query(None),
     verdict: Optional[str] = Query(None),
@@ -51,7 +51,7 @@ async def get_history(
     }
 
 
-@router.get("/history/stats")
+@router.get("/stats")
 async def get_stats() -> Dict[str, Any]:
     """
     Get scan statistics.
