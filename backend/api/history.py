@@ -1,9 +1,13 @@
 from fastapi import APIRouter, HTTPException, Query
 from typing import List, Dict, Any, Optional
 
-from db.mongodb import MongoDBClient
+# Handle both local and Render imports
+try:
+    from backend.db.mongodb import MongoDBClient
+except ImportError:
+    from db.mongodb import MongoDBClient
 
-router = APIRouter(prefix="/api", tags=["history"])
+router = APIRouter(tags=["history"])
 db_client = None
 
 

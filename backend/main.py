@@ -14,9 +14,14 @@ if os.getenv("RENDER") is None:
         pass
 
 # ---------------------------------
-# Routers (backend is root directory)
+# Routers (handle both local and Render imports)
 # ---------------------------------
-from api import scan, history
+try:
+    # Try absolute imports (Render environment)
+    from backend.api import scan, history
+except ImportError:
+    # Fall back to relative imports (local development)
+    from api import scan, history
 
 app = FastAPI(
     title="Phishing Email Sentinel",
@@ -36,11 +41,11 @@ app.add_middleware(
 )
 
 # ---------------------------------
-# Validate required secrets
+# MongoDB Configuration (optional)
 # ---------------------------------
-MONGO_URI = os.getenv("MONGO_URI")
-if not MONGO_URI:
-    raise RuntimeError("MONGO_URI environment variable not set")
+MONGODB_URI = os.getenv("MONGODB_URI") or os.getenv("MONGO_URI")
+if not MONGODB_URI and os.getenv("RENDER"):
+    print("⚠️  Warning: MONGODB_URI not set on Render. MongoDB features disabled.")
 
 # ---------------------------------
 # Initialize DB connections

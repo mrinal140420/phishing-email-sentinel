@@ -13,9 +13,9 @@ class MongoDBClient:
 
     def __init__(self):
         """Initialize MongoDB connection."""
-        self.uri = os.getenv('MONGODB_URI')
+        self.uri = os.getenv('MONGODB_URI') or os.getenv('MONGO_URI')
         if not self.uri:
-            raise ValueError("MONGODB_URI environment variable not set")
+            raise ValueError("MONGODB_URI environment variable not set. Please configure it in your deployment.")
 
         self.client = None
         self.db = None

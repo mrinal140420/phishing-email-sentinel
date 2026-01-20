@@ -2,8 +2,13 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 from pydantic import BaseModel
 from typing import Dict, Any
 
-from services.scanner import EmailScanner
-from db.mongodb import MongoDBClient
+# Handle both local and Render imports
+try:
+    from backend.services.scanner import EmailScanner
+    from backend.db.mongodb import MongoDBClient
+except ImportError:
+    from services.scanner import EmailScanner
+    from db.mongodb import MongoDBClient
 
 router = APIRouter(tags=["scan"])
 scanner = EmailScanner()
