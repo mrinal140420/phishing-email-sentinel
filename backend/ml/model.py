@@ -4,11 +4,13 @@ ML Model for Phishing Email Detection (DistilBERT)
 - True supervised Deep Learning (fine-tuned DistilBERT)
 - CPU-only inference (Render safe)
 - Lazy loading
-- PES contract compliant
+- HuggingFace repo based (single source of truth)
 - Robust email preprocessing (headers + HTML)
+- PES contract compliant
 """
 
 from typing import Dict, Any
+import os
 import logging
 import re
 
@@ -16,6 +18,16 @@ import torch
 import torch.nn.functional as F
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from bs4 import BeautifulSoup
+
+# =========================
+# Config
+# =========================
+MODEL_REPO = os.getenv(
+    "HF_MODEL_REPO",
+    "Elite1038/pes-distilbert-phishing"
+)
+
+DEVICE = torch.device("cpu")
 
 logger = logging.getLogger(__name__)
 
@@ -40,15 +52,15 @@ def clean_email_text(raw: str) -> str:
     if "\n\n" in raw:
         raw = raw.split("\n\n", 1)[1]
 
-    # Strip HTML
+    # Strip HTML safely
     soup = BeautifulSoup(raw, "html.parser")
     text = soup.get_text(separator=" ")
 
     # Remove URLs
-    text = re.sub(r"http\\S+", " ", text)
+    text = re.sub(r"http\S+", " ", text)
 
     # Normalize whitespace
-    text = re.sub(r"\\s+", " ", text)
+    text = re.sub(r"\s+", " ", text)
 
     return text.strip()
 
@@ -68,9 +80,8 @@ class PhishingModel:
     }
     """
 
-    def __init__(self, model_path: str = "backend/models/phishing-distilbert"):
-        self.model_path = model_path
-        self.device = torch.device("cpu")
+    def __init__(self):
+        self.device = DEVICE
         self.model = None
         self.tokenizer = None
         self.model_loaded = False
@@ -83,11 +94,11 @@ class PhishingModel:
             return True
 
         try:
-            logger.info(f"Loading DistilBERT model from {self.model_path}")
+            logger.info(f"Loading DistilBERT from HuggingFace: {MODEL_REPO}")
 
-            self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
+            self.tokenizer = AutoTokenizer.from_pretrained(MODEL_REPO)
             self.model = AutoModelForSequenceClassification.from_pretrained(
-                self.model_path
+                MODEL_REPO
             )
 
             self.model.to(self.device)
@@ -98,28 +109,25 @@ class PhishingModel:
             return True
 
         except Exception as e:
-            logger.error(f"Failed to load DistilBERT model: {e}")
+            logger.exception("❌ Failed to load DistilBERT model")
             self.model_loaded = False
             return False
 
     # -------------------------
     # Inference
     # -------------------------
-    def predict(self, text: str) -> Dict[str, Any]:
-        if not text or not isinstance(text, str):
+    def predict(self, raw_email: str) -> Dict[str, Any]:
+        if not raw_email or not isinstance(raw_email, str):
             return self._empty_result()
 
-        if not self.model_loaded:
-            if not self._load_model():
-                return self._empty_result()
+        if not self.model_loaded and not self._load_model():
+            return self._empty_result()
+
+        cleaned_text = clean_email_text(raw_email)
+        if not cleaned_text:
+            return self._empty_result()
 
         try:
-            # ✅ CLEAN INPUT (CRITICAL FIX)
-            cleaned_text = clean_email_text(text)
-
-            if not cleaned_text:
-                return self._empty_result()
-
             inputs = self.tokenizer(
                 cleaned_text,
                 truncation=True,
@@ -131,26 +139,23 @@ class PhishingModel:
             inputs = {k: v.to(self.device) for k, v in inputs.items()}
 
             with torch.no_grad():
-                outputs = self.model(**inputs)
-                logits = outputs.logits
+                logits = self.model(**inputs).logits
                 probs = F.softmax(logits, dim=-1)
 
-            # Class 1 = phishing
+            # Class index 1 = phishing
             phishing_prob = float(probs[0][1])
 
-            # ✅ PROBABILITY FLOOR (prevents 0.0 illusion)
+            # Probability floor (prevents false certainty)
             phishing_prob = max(0.05, phishing_prob)
-
-            confidence = self._confidence_level(phishing_prob)
 
             return {
                 "model": "DistilBERT",
                 "phishing_probability": round(phishing_prob, 3),
-                "confidence_level": confidence
+                "confidence_level": self._confidence_level(phishing_prob)
             }
 
-        except Exception as e:
-            logger.error(f"Inference error: {e}")
+        except Exception:
+            logger.exception("❌ Inference failure")
             return self._empty_result()
 
     # -------------------------
@@ -162,8 +167,7 @@ class PhishingModel:
             return "HIGH"
         elif prob >= 0.50:
             return "MEDIUM"
-        else:
-            return "LOW"
+        return "LOW"
 
     # -------------------------
     # Safe Default
