@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+pymongo
+python-multipart
+sentence-transformers
+beautifulsoup4
+lxml
+email-validator
+pydantic
+numpy
