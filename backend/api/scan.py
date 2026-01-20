@@ -2,9 +2,9 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 from pydantic import BaseModel
 from typing import Dict, Any
 
-from backend.services.scanner import EmailScanner
-from backend.db.mongodb import MongoDBClient
-from backend.db.schemas import ScanResultSchema
+from services.scanner import EmailScanner
+from db.mongodb import MongoDBClient
+from db.schemas import ScanResultSchema
 
 router = APIRouter(prefix="/api", tags=["scan"])
 scanner = EmailScanner()

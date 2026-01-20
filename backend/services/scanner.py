@@ -2,10 +2,10 @@ import uuid
 from datetime import datetime
 from typing import Dict, Any
 
-from backend.core.parser import parse_email
-from backend.core.rules import evaluate_rules
-from backend.core.decision import make_decision
-from backend.ml.model import PhishingModel
+from core.parser import parse_email
+from core.rules import evaluate_rules
+from core.decision import make_decision
+from ml.model import PhishingModel
 
 
 class EmailScanner:
