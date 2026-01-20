@@ -51,8 +51,9 @@ history.init_db()
 # ---------------------------------
 # Routes
 # ---------------------------------
-app.include_router(scan.router, prefix="/scan", tags=["Scan"])
-app.include_router(history.router, prefix="/history", tags=["History"])
+app.include_router(scan.router, prefix="/api", tags=["Scan"])
+app.include_router(history.router, prefix="/api", tags=["History"])
+
 
 
 @app.get("/health", tags=["Health"])
