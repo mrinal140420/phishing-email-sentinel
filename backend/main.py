@@ -1,12 +1,22 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
-from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# ---------------------------------
+# Load .env ONLY for local dev
+# (Render injects env vars automatically)
+# ---------------------------------
+if os.getenv("RENDER") is None:
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except Exception:
+        pass
 
-from backend.api import scan, history
+# ---------------------------------
+# Routers (backend is root directory)
+# ---------------------------------
+from api import scan, history
 
 app = FastAPI(
     title="Phishing Email Sentinel",
@@ -14,7 +24,9 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Add CORS middleware
+# ---------------------------------
+# CORS (open for MVP, restrict later)
+# ---------------------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,21 +35,43 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize database
+# ---------------------------------
+# Validate required secrets
+# ---------------------------------
+MONGO_URI = os.getenv("MONGO_URI")
+if not MONGO_URI:
+    raise RuntimeError("MONGO_URI environment variable not set")
+
+# ---------------------------------
+# Initialize DB connections
+# ---------------------------------
 scan.init_db()
 history.init_db()
 
-# Include routers
-app.include_router(scan.router)
-app.include_router(history.router)
+# ---------------------------------
+# Routes
+# ---------------------------------
+app.include_router(scan.router, prefix="/scan", tags=["Scan"])
+app.include_router(history.router, prefix="/history", tags=["History"])
 
 
-@app.get("/health")
+@app.get("/health", tags=["Health"])
 async def health_check():
-    """Health check endpoint."""
-    return {"status": "healthy", "service": "PES"}
+    return {
+        "status": "healthy",
+        "service": "Phishing Email Sentinel"
+    }
 
 
+# ---------------------------------
+# Local run only (Render ignores this)
+# ---------------------------------
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=10000,
+        reload=True
+    )
+
