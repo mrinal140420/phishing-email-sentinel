@@ -1,37 +1,92 @@
 import axios from 'axios'
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000'
+/**
+ * Single source of truth for API base URL
+ */
+const API_BASE_URL =
+  process.env.REACT_APP_API_URL ||
+  'https://pes-backend.onrender.com'
 
+/**
+ * Axios instance
+ */
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json'
-  }
+  },
+  timeout: 15000
 })
 
+/**
+ * Normalize API errors
+ */
+const handleError = (error, fallback) => {
+  throw error.response?.data || fallback
+}
+
+/* ============================
+   Scan APIs
+   ============================ */
+
+/**
+ * Scan raw email text
+ * @param {string} rawEmail
+ */
 export const scanEmail = async (rawEmail) => {
   try {
-    const response = await api.post('/api/scan', { raw_email: rawEmail })
-    return response.data
-  } catch (error) {
-    throw error.response?.data || { error: 'Failed to scan email' }
+    const res = await api.post('/api/scan', {
+      raw_email: rawEmail
+    })
+    return res.data
+  } catch (err) {
+    handleError(err, { error: 'Failed to scan email' })
   }
 }
 
+/**
+ * Legacy compatibility (old /scan contract)
+ * @deprecated
+ */
+export const scanEmailLegacy = async (payload) => {
+  try {
+    const res = await api.post('/scan', payload)
+    return res.data
+  } catch (err) {
+    handleError(err, { error: 'Failed to scan email (legacy)' })
+  }
+}
+
+/**
+ * Scan uploaded email file
+ */
 export const scanEmailFile = async (file) => {
   try {
     const formData = new FormData()
     formData.append('file', file)
-    const response = await api.post('/api/scan/file', formData, {
+
+    const res = await api.post('/api/scan/file', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
-    return response.data
-  } catch (error) {
-    throw error.response?.data || { error: 'Failed to scan file' }
+    return res.data
+  } catch (err) {
+    handleError(err, { error: 'Failed to scan file' })
   }
 }
 
-export const getHistory = async (domain = null, verdict = null, limit = 100, offset = 0) => {
+/* ============================
+   History & Analytics
+   ============================ */
+
+/**
+ * Fetch scan history
+ */
+export const getHistory = async ({
+  domain = null,
+  verdict = null,
+  limit = 100,
+  offset = 0
+} = {}) => {
   try {
     const params = new URLSearchParams()
     if (domain) params.append('domain', domain)
@@ -39,19 +94,22 @@ export const getHistory = async (domain = null, verdict = null, limit = 100, off
     params.append('limit', limit)
     params.append('offset', offset)
 
-    const response = await api.get(`/api/history?${params}`)
-    return response.data
-  } catch (error) {
-    throw error.response?.data || { error: 'Failed to fetch history' }
+    const res = await api.get(`/api/history?${params.toString()}`)
+    return res.data
+  } catch (err) {
+    handleError(err, { error: 'Failed to fetch history' })
   }
 }
 
+/**
+ * Fetch aggregate stats
+ */
 export const getStats = async () => {
   try {
-    const response = await api.get('/api/history/stats')
-    return response.data
-  } catch (error) {
-    throw error.response?.data || { error: 'Failed to fetch stats' }
+    const res = await api.get('/api/history/stats')
+    return res.data
+  } catch (err) {
+    handleError(err, { error: 'Failed to fetch stats' })
   }
 }
 
